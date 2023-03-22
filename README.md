@@ -28,11 +28,14 @@ pip install pygame
 python main.py
 
 ## How to Play
+
 Use the arrow keys or W, A, S, D keys to move the spaceship.
 Use the mouse to aim and left-click to shoot lasers at the aliens and hives.
 Collect power-ups to heal your spaceship or increase your laser power.
 Protect your base and destroy all alien hives to progress through the levels.
+
 ## Gameplay
+
 The game consists of multiple levels with increasing difficulty.
 Each level has a number of alien hives that spawn aliens at a set rate.
 Aliens will attack both your spaceship and your base.
