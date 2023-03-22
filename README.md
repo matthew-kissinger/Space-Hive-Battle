@@ -19,7 +19,6 @@ SpaceHive Battle is a 2D space shooter game built using Python and Pygame librar
 1. Install Python 3.x from the official website: https://www.python.org/downloads/
 2. Install Pygame by running the following command in your terminal or command prompt:
 
-```bash
 pip install pygame
 
 3. Clone or download the SpaceHive Battle repository.
