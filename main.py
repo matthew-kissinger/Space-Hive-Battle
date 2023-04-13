@@ -490,7 +490,6 @@ def game_loop():
                 else:
                     base.health -= RANGED_DAMAGE
                 alien.kill()
-                alien_sound.play()
 
         player_collisions = pygame.sprite.spritecollide(player, aliens, False)
         for alien in player_collisions:
