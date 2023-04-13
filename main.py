@@ -2,7 +2,7 @@ import pygame
 import random
 import math
 from pygame.locals import *
-
+import pygame.mixer
 # Constants
 WIDTH, HEIGHT = 800, 600
 WORLD_WIDTH, WORLD_HEIGHT = 3 * WIDTH, 3 * HEIGHT
@@ -41,10 +41,15 @@ LASER_POWERUP_HEIGHT = 50
 BASE_HEALTH_POWERUP_WIDTH = 50
 BASE_HEALTH_POWERUP_HEIGHT = 50
 BASE_HEALTH_POWERUP_HEAL_AMOUNT = 100
+last_fire_time = 0
+fire_interval = 100
+last_powerup_fire_time = 0
+laser_fire_interval = 20
 
 
 # Initialization
 pygame.init()
+pygame.mixer.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 pygame.display.set_caption("SpaceHive Battle")
@@ -73,7 +78,7 @@ class LaserPowerUp(pygame.sprite.Sprite):
         self.image = pygame.image.load(LASER_POWERUP_IMAGE_PATH).convert_alpha()
         self.image = pygame.transform.scale(self.image, (LASER_POWERUP_WIDTH, LASER_POWERUP_HEIGHT))
         self.rect = self.image.get_rect(center=(random.randint(0, WORLD_WIDTH), random.randint(0, WORLD_HEIGHT)))
-        self.duration = 30 * 1000  # 30 seconds in milliseconds
+        self.duration = 10 * 1000  # 30 seconds in milliseconds
         self.laser_speed = 5
 
 
@@ -208,10 +213,15 @@ def draw_base_health_bar(screen, base):
     pct = base.health / BASE_HEALTH
     draw_health_bar(screen, x, y, pct, color=(0, 0, 255))
 
-def draw_level(screen, level):
+def draw_level(screen, level, hives):
     font = pygame.font.Font(None, 36)
-    text = font.render("Level: {}".format(level), True, (255, 255, 255))
-    screen.blit(text, (WIDTH - 150, 20))  # Adjust the position
+    text_level = font.render("Level: {}".format(level), True, (255, 255, 255))
+    screen.blit(text_level, (WIDTH - 150, 20))  # Adjust the position
+
+    # Draw the "Hives Left" text below the level text
+    text_hives_left = font.render("Hives Left: {}".format(len(hives)), True, (255, 255, 255))
+    screen.blit(text_hives_left, (WIDTH - 180, 60))  # Adjust the position
+
 
 def draw_health_labels(screen):
     font = pygame.font.Font(None, 24)
@@ -283,9 +293,25 @@ def draw_mini_map(screen, screen_section):
     )
     pygame.draw.rect(screen, (255, 255, 0), player_section_rect)
 
+#Sound
+alien_sound = pygame.mixer.Sound('aliendead.wav')
+alien_sound.set_volume(0.5) 
+collapse_sound = pygame.mixer.Sound('collapse.wav')
+laser_sound = pygame.mixer.Sound('laser.mp3')
+laser_sound.set_volume(0.5) 
+powerup_sound = pygame.mixer.Sound('powerup.wav')
+pygame.mixer.music.load('background.wav')
+pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
+laser_sound_channel = None
 
 # Game Loop - Modify the game loop to incorporate levels and change alien spawning
 def game_loop():
+    global last_fire_time
+    global fire_interval
+    global last_powerup_fire_time
+    global laser_fire_interval
+    global laser_sound_channel
+
     if not menu_screen():
         return
     
@@ -331,31 +357,45 @@ def game_loop():
             if in_same_section(entity.rect, player.rect) and isinstance(entity, (Alien, AlienHive)):
                 entity.draw_health_bar(screen, screen_section)
 
-
-
-
-
         keys = pygame.key.get_pressed()
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                running = False
-            if event.type == MOUSEBUTTONDOWN and event.button == 1:
+        mouse_buttons = pygame.mouse.get_pressed()
+        current_time = pygame.time.get_ticks()
+
+        # Check if the left mouse button is being held down
+        if mouse_buttons[0]:
+            current_time = pygame.time.get_ticks()
+            if current_time - last_fire_time >= fire_interval:
                 world_click_pos = pygame.math.Vector2(pygame.mouse.get_pos()) + pygame.math.Vector2(screen_section)
                 laser = Laser(player.rect.center, world_click_pos)
                 lasers.add(laser)
                 all_sprites.add(laser)
-            if player_laser_powerup_active:
-                current_time = pygame.time.get_ticks()
-                if isinstance(powerup, LaserPowerUp) and current_time - player_laser_powerup_start > powerup.duration:
-                    player_laser_powerup_active = False
-                elif player_laser_powerup_active:
-                    # Fire lasers in all directions
-                    for angle in range(0, 360, 45):
-                        direction = pygame.math.Vector2()
-                        direction.from_polar((1, angle))
-                        laser = Laser(player.rect.center, pygame.math.Vector2(player.rect.center) + direction * 100)
-                        lasers.add(laser)
-                        all_sprites.add(laser)
+                last_fire_time = current_time
+                laser_sound.play()
+
+        # Power-up laser firing
+        if player_laser_powerup_active:
+            current_time = pygame.time.get_ticks()
+            if isinstance(powerup, LaserPowerUp) and current_time - player_laser_powerup_start > powerup.duration:
+                player_laser_powerup_active = False
+                if laser_sound_channel:
+                    laser_sound_channel.stop()  # Stop the laser sound loop when the power-up ends
+            elif current_time - last_powerup_fire_time >= fire_interval:
+                # Fire lasers in all directions
+                for angle in range(0, 360, 45):
+                    direction = pygame.math.Vector2()
+                    direction.from_polar((1, angle))
+                    laser = Laser(player.rect.center, pygame.math.Vector2(player.rect.center) + direction * 100)
+                    lasers.add(laser)
+                    all_sprites.add(laser)
+                last_powerup_fire_time = current_time
+
+                if not laser_sound_channel or not laser_sound_channel.get_busy():  # Check if the laser sound is not already playing
+                    laser_sound_channel = laser_sound.play(-1)  # Play the laser sound effect in a loop
+
+
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                running = False
 
             if event.type == spawn_event:
                 for hive in hives:
@@ -440,6 +480,7 @@ def game_loop():
                 alien.health -= LASER_DAMAGE * len(hits)
                 if alien.health <= 0:
                     alien.kill()
+                    alien_sound.play()
 
         base_collisions = pygame.sprite.spritecollide(base, aliens, False)
         for alien in base_collisions:
@@ -449,6 +490,7 @@ def game_loop():
                 else:
                     base.health -= RANGED_DAMAGE
                 alien.kill()
+                alien_sound.play()
 
         player_collisions = pygame.sprite.spritecollide(player, aliens, False)
         for alien in player_collisions:
@@ -458,13 +500,14 @@ def game_loop():
                 else:
                     player.health -= RANGED_DAMAGE
                 alien.kill()
-
+                alien_sound.play()
 
         hives_collisions = pygame.sprite.groupcollide(hives, lasers, False, True)
         for hive, hits in hives_collisions.items():
             hive.health -= LASER_DAMAGE * len(hits)
             if hive.health <= 0:
                 hive.kill()
+                collapse_sound.play()
             else:
                 # Check if the hive is in the player's section
                 if PlayerSection(pygame.math.Vector2(hive.rect.center)) == PlayerSection(pygame.math.Vector2(player.rect.center)):
@@ -487,7 +530,7 @@ def game_loop():
 
         draw_player_health(screen, player)
         draw_base_health_bar(screen, base)
-        draw_level(screen, level)
+        draw_level(screen, level, hives)
         draw_health_labels(screen)
         draw_mini_map(screen, screen_section)
 
