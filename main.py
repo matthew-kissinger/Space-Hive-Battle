@@ -297,7 +297,7 @@ def draw_mini_map(screen, screen_section):
 alien_sound = pygame.mixer.Sound('aliendead.wav')
 alien_sound.set_volume(0.5) 
 collapse_sound = pygame.mixer.Sound('collapse.wav')
-laser_sound = pygame.mixer.Sound('laser.mp3')
+laser_sound = pygame.mixer.Sound('laser.wav')
 laser_sound.set_volume(0.5) 
 powerup_sound = pygame.mixer.Sound('powerup.wav')
 pygame.mixer.music.load('background.wav')
