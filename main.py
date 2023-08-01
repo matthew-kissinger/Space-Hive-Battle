@@ -3,8 +3,9 @@ import random
 import math
 from pygame.locals import *
 import pygame.mixer
+
 # Constants
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 1000, 1000
 WORLD_WIDTH, WORLD_HEIGHT = 3 * WIDTH, 3 * HEIGHT
 PLAYER_SPEED = 5
 ALIEN_SPEED = 2
@@ -14,20 +15,20 @@ HIVE_HEALTH = 300
 BASE_HEALTH = 500
 RANGED_HEALTH = 25
 MELEE_HEALTH = 50
-RANGED_DAMAGE = 5
-MELEE_DAMAGE = 10
+ALIEN2_DAMAGE = 5
+ALIEN1_DAMAGE = 10
 LASER_DAMAGE = 10
-SPAWN_RATE = 5 * 1000
+SPAWN_RATE = 12 * 1000
 LASER_WIDTH = 5
 LASER_HEIGHT = 5
-PLAYER_WIDTH = 25
-PLAYER_HEIGHT = 25
-HIVE_WIDTH = 30
-HIVE_HEIGHT = 30
-ALIEN_WIDTH = 20
-ALIEN_HEIGHT = 20
-BASE_WIDTH = 100
-BASE_HEIGHT = 100
+PLAYER_WIDTH = 100
+PLAYER_HEIGHT = 100
+HIVE_WIDTH = 130
+HIVE_HEIGHT = 130
+ALIEN_WIDTH = 80
+ALIEN_HEIGHT = 80
+BASE_WIDTH = 200
+BASE_HEIGHT = 200
 HEALTH_IMAGE_PATH = 'health.png'
 LASER_IMAGE_PATH = 'laser.png'
 LASER_POWERUP_IMAGE_PATH = 'laserpowerup.png'
@@ -45,6 +46,7 @@ last_fire_time = 0
 fire_interval = 100
 last_powerup_fire_time = 0
 laser_fire_interval = 20
+
 
 
 # Initialization
@@ -81,6 +83,73 @@ class LaserPowerUp(pygame.sprite.Sprite):
         self.duration = 10 * 1000  # 30 seconds in milliseconds
         self.laser_speed = 5
 
+def in_same_section(rect1, rect2):
+    return (
+        (rect1.left // WIDTH == rect2.left // WIDTH or rect1.right // WIDTH == rect2.right // WIDTH)
+        and (rect1.top // HEIGHT == rect2.top // HEIGHT or rect1.bottom // HEIGHT == rect2.bottom // HEIGHT)
+    )
+
+class LaserTower(pygame.sprite.Sprite):
+    def __init__(self, position):
+        super().__init__()
+        # Load the image and scale it to the desired size
+        self.image = pygame.image.load("laser_tower.png").convert_alpha()
+        self.image = pygame.transform.scale(self.image, (100, 100))  # Adjust these dimensions to match your image
+        self.rect = self.image.get_rect(center=position)
+        self.health = PLAYER_HEALTH  # Same health as the player for now
+        self.last_fire_time = pygame.time.get_ticks()  # Store the time when the tower last fired
+        self.fire_interval = 2000  # Time between each shot in milliseconds
+
+    def update(self, aliens, all_sprites, lasers):  # add lasers as an argument
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_fire_time >= self.fire_interval:
+            self.fire_at_nearest_alien(aliens, all_sprites, lasers)  # add lasers as an argument
+            self.last_fire_time = current_time
+
+
+    def fire_at_nearest_alien(self, aliens, all_sprites, lasers):
+        # Filter aliens to include only those in the same section as the laser tower
+        aliens_in_section = [alien for alien in aliens if in_same_section(alien.rect, self.rect)]
+
+        if not aliens_in_section:
+            return  # No aliens to fire at in the section
+
+        nearest_alien = min(aliens_in_section, key=lambda alien: pygame.math.Vector2(self.rect.center).distance_to(pygame.math.Vector2(alien.rect.center)))
+        target = pygame.math.Vector2(nearest_alien.rect.center)
+        laser = LaserTowerLaser(self.rect.center, target)  # Use LaserTowerLaser here
+        lasers.add(laser)  # add the laser to the lasers group
+        all_sprites.add(laser)
+        print("Laser fired from tower at", self.rect.center, "towards", target)
+
+
+class LaserTowerLaser(pygame.sprite.Sprite):
+    def __init__(self, origin, target):
+        super().__init__()
+        self.image = pygame.Surface((20, 20))
+        self.image.fill((255, 0, 0))  # RGB values for red
+        self.rect = self.image.get_rect(center=origin)
+        self.speed = LASER_SPEED
+        direction = target - pygame.math.Vector2(origin)
+        self.velocity = direction.normalize() * self.speed
+
+        # Added this line to store the exact position
+        self.exact_pos = pygame.math.Vector2(origin)
+
+    def update(self):
+        # Update the exact position
+        self.exact_pos += self.velocity
+
+        # Set the rect position based on the exact position
+        self.rect.center = self.exact_pos  # This line automatically converts the Vector2 to a tuple and rounds the values
+
+        # Remove the laser if it goes off the world boundaries
+        if not pygame.Rect(0, 0, WORLD_WIDTH, WORLD_HEIGHT).collidepoint(self.rect.center):
+            self.kill()
+
+
+
+
+
 
 class PlayerSection:
     def __init__(self, center):
@@ -100,6 +169,11 @@ class Player(pygame.sprite.Sprite):
         self.image = pygame.transform.scale(image, (PLAYER_WIDTH, PLAYER_HEIGHT))
         self.rect = self.image.get_rect(center=(WIDTH + WIDTH // 2, HEIGHT + HEIGHT // 2))
         self.health = PLAYER_HEALTH
+        self.num_lasers = 1
+
+    def add_laser(self):
+        self.num_lasers += 1
+
 
     def update(self, keys):
         old_rect = self.rect.copy()  # Store the previous position of the player
@@ -122,7 +196,7 @@ class AlienHive(pygame.sprite.Sprite):
         super().__init__()
         image = pygame.image.load("hive.png").convert_alpha()
         self.image = pygame.transform.scale(image, (HIVE_WIDTH, HIVE_HEIGHT))
-        self.rect = self.image.get_rect(center=(random.randint(0, WORLD_WIDTH - HIVE_WIDTH), random.randint(0, WORLD_HEIGHT - HIVE_HEIGHT)))
+        self.rect = self.image.get_rect(center=(random.randint(HIVE_WIDTH // 2, WORLD_WIDTH - HIVE_WIDTH // 2), random.randint(HIVE_HEIGHT // 2, WORLD_HEIGHT - HIVE_HEIGHT // 2)))
         self.health = HIVE_HEALTH
         self.max_health = self.health
 
@@ -168,6 +242,8 @@ class Base(pygame.sprite.Sprite):
         self.image = pygame.transform.scale(image, (BASE_WIDTH, BASE_HEIGHT))
         self.rect = self.image.get_rect(center=(WIDTH + WIDTH // 2, HEIGHT + HEIGHT // 2))
         self.health = BASE_HEALTH
+        self.initial_health = BASE_HEALTH  # Add this line
+
 
 class Laser(pygame.sprite.Sprite):
     def __init__(self, origin, target):
@@ -213,14 +289,26 @@ def draw_base_health_bar(screen, base):
     pct = base.health / BASE_HEALTH
     draw_health_bar(screen, x, y, pct, color=(0, 0, 255))
 
-def draw_level(screen, level, hives):
+def draw_level(screen, level, hives, upgrade_points):
     font = pygame.font.Font(None, 36)
     text_level = font.render("Level: {}".format(level), True, (255, 255, 255))
-    screen.blit(text_level, (WIDTH - 150, 20))  # Adjust the position
+    screen.blit(text_level, (WIDTH - 125, 20))  # Adjust the position
 
     # Draw the "Hives Left" text below the level text
     text_hives_left = font.render("Hives Left: {}".format(len(hives)), True, (255, 255, 255))
     screen.blit(text_hives_left, (WIDTH - 180, 60))  # Adjust the position
+
+    # Draw the "Upgrades Available" text below the "Hives Left" text
+    text_upgrades = font.render("Upgrades: {}".format(upgrade_points), True, (255, 255, 255))
+    screen.blit(text_upgrades, (10, 100))  # Adjust the position
+
+    # Draw the upgrade options below the "Upgrades Available" text
+    if upgrade_points > 0:
+        font = pygame.font.Font(None, 24)
+        screen.blit(font.render('1: Add Laser', True, (255, 255, 255)), (10, 140))
+        screen.blit(font.render('2: Space Cannon', True, (255, 255, 255)), (10 , 170))
+        screen.blit(font.render('3: Base Full Health', True, (255, 255, 255)), (10, 200))
+
 
 
 def draw_health_labels(screen):
@@ -297,14 +385,14 @@ def draw_mini_map(screen, screen_section):
 alien_sound = pygame.mixer.Sound('aliendead.wav')
 alien_sound.set_volume(0.5) 
 collapse_sound = pygame.mixer.Sound('collapse.wav')
-laser_sound = pygame.mixer.Sound('laser.wav')
+laser_sound = pygame.mixer.Sound('laser.mp3')
 laser_sound.set_volume(0.5) 
 powerup_sound = pygame.mixer.Sound('powerup.wav')
 pygame.mixer.music.load('background.wav')
 pygame.mixer.music.play(-1)  # -1 means the music will loop indefinitely
 laser_sound_channel = None
 
-# Game Loop - Modify the game loop to incorporate levels and change alien spawning
+# Game Loop 
 def game_loop():
     global last_fire_time
     global fire_interval
@@ -333,9 +421,9 @@ def game_loop():
     base_health_powerups = pygame.sprite.Group()
     powerup_event = pygame.USEREVENT + 2
     pygame.time.set_timer(powerup_event, 10 * 1000)  # every 10 seconds
-
-
+    laser_towers = pygame.sprite.Group()
     level = 1
+    upgrade_points = 0
     start_next_level(level, hives, all_sprites)
     spawn_event = pygame.USEREVENT + 1
     pygame.time.set_timer(spawn_event, SPAWN_RATE)
@@ -343,6 +431,8 @@ def game_loop():
     section_x = 0
     section_y = 0
     screen_section = (section_x, section_y)
+    LASER_TOWER_FIRE_EVENT = pygame.USEREVENT + 3
+    pygame.time.set_timer(LASER_TOWER_FIRE_EVENT, 2000)  # Fire every 2 seconds
 
     running = True
     while running:
@@ -356,6 +446,13 @@ def game_loop():
         for entity in all_sprites:
             if in_same_section(entity.rect, player.rect) and isinstance(entity, (Alien, AlienHive)):
                 entity.draw_health_bar(screen, screen_section)
+        
+        for entity in all_sprites:
+            if isinstance(entity, LaserTower):
+                entity.update(aliens, all_sprites, lasers)
+        
+
+
 
         keys = pygame.key.get_pressed()
         mouse_buttons = pygame.mouse.get_pressed()
@@ -366,9 +463,20 @@ def game_loop():
             current_time = pygame.time.get_ticks()
             if current_time - last_fire_time >= fire_interval:
                 world_click_pos = pygame.math.Vector2(pygame.mouse.get_pos()) + pygame.math.Vector2(screen_section)
-                laser = Laser(player.rect.center, world_click_pos)
-                lasers.add(laser)
-                all_sprites.add(laser)
+                direction = (world_click_pos - pygame.math.Vector2(player.rect.center)).normalize()
+                offset = direction * 50  # 30 pixels in the direction of the laser
+                new_origin = pygame.math.Vector2(player.rect.center) + offset
+                angle_step = 360 / player.num_lasers  # Calculate the angle between each laser
+                for i in range(player.num_lasers):  # Create a laser for each laser the player has
+                    angle = i * angle_step
+                    rotated_direction = pygame.math.Vector2(direction).rotate(angle)
+                    offset = direction * 50 * (-1)**i  # Alternating offset
+                    new_origin = pygame.math.Vector2(player.rect.center) + offset
+                    target = pygame.math.Vector2(player.rect.center) + rotated_direction * 1000  # Project the target far away
+                    laser = Laser(new_origin, target)
+                    lasers.add(laser)
+                    all_sprites.add(laser)
+
                 last_fire_time = current_time
                 laser_sound.play()
 
@@ -421,13 +529,36 @@ def game_loop():
                     base_health_powerup = BaseHealthPowerUp("base")
                     base_health_powerups.add(base_health_powerup)
                     all_sprites.add(base_health_powerup)
+            elif event.type == KEYDOWN:
+                if event.key == K_1 and upgrade_points > 0:
+                    if player.num_lasers < 2:  # Only upgrade if the player has fewer than 2 lasers
+                        upgrade_points -= 1
+                        player.add_laser()
+                        print("Perform laser upgrade")
+                        print(f"Number of lasers: {player.num_lasers}")
+                elif event.key == K_2 and upgrade_points > 0:
+                    upgrade_points -= 1
+                    tower = LaserTower(player.rect.center)
+                    laser_towers.add(tower)
+                    all_sprites.add(tower)
+                    print("Placed laser tower")
+                elif event.key == K_3 and upgrade_points > 0:
+                    upgrade_points -= 1
+                    base.health = BASE_HEALTH
+                    print("Full Base Health")
+                elif event.type == LASER_TOWER_FIRE_EVENT:
+                    for laser_tower in laser_towers:
+                        laser_tower.update(aliens, all_sprites, lasers)  # add lasers as an argument
 
 
 
             health_powerup_collisions = pygame.sprite.spritecollide(player, health_powerups, True)
             for powerup in health_powerup_collisions:
                 if powerup.healing_target == "player":
+                    print(f"Before healing: {player.health}")
                     player.health = min(PLAYER_HEALTH, player.health + powerup.heal_amount)
+                    print(f"After healing: {player.health}")
+
 
             base_health_powerup_collisions = pygame.sprite.spritecollide(player, base_health_powerups, True)
             for powerup in base_health_powerup_collisions:
@@ -486,18 +617,18 @@ def game_loop():
         for alien in base_collisions:
             if alien.health > 0:
                 if alien.alien_type == "melee":
-                    base.health -= MELEE_DAMAGE
+                    base.health -= ALIEN1_DAMAGE
                 else:
-                    base.health -= RANGED_DAMAGE
+                    base.health -= ALIEN2_DAMAGE
                 alien.kill()
 
         player_collisions = pygame.sprite.spritecollide(player, aliens, False)
         for alien in player_collisions:
             if alien.health > 0:
                 if alien.alien_type == "melee":
-                    player.health -= MELEE_DAMAGE
+                    player.health -= ALIEN1_DAMAGE
                 else:
-                    player.health -= RANGED_DAMAGE
+                    player.health -= ALIEN2_DAMAGE
                 alien.kill()
                 alien_sound.play()
 
@@ -515,8 +646,10 @@ def game_loop():
         # Check if any hives are left, if not, go to the next level
         if not hives:
             level += 1
+            upgrade_points += 1  # give the player an upgrade point
             start_next_level(level, hives, all_sprites)
             pygame.time.set_timer(spawn_event, SPAWN_RATE // level)
+
 
         for hive in hives:
             if in_same_section(hive.rect, player.rect):
@@ -529,9 +662,10 @@ def game_loop():
 
         draw_player_health(screen, player)
         draw_base_health_bar(screen, base)
-        draw_level(screen, level, hives)
+        draw_level(screen, level, hives, upgrade_points)
         draw_health_labels(screen)
         draw_mini_map(screen, screen_section)
+
 
         pygame.display.flip()
         clock.tick(60)
