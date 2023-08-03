@@ -1,42 +1,45 @@
-# SpaceHive Battle
+# Space Hive Battle
 
-SpaceHive Battle is a 2D space shooter game built using Python and Pygame library. The objective of the game is to destroy alien hives and protect your base. You control a spaceship and shoot lasers at alien hives and alien ships. Collect power-ups to heal your spaceship or increase your laser power.
+Greetings Space Ranger! Welcome to the most exciting 2D alien extermination game you'll ever play, Space Hive Battle!
 
-## Table of Contents
+## About the Game
 
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [How to Play](#how-to-play)
-- [Gameplay](#gameplay)
+Space Hive Battle is a thrilling, fast-paced game where you'll take on the role of a spaceship commander battling against an invasion of alien hives. The game is set in a large 2D space environment filled with alien hives, each with their own spawn rate and health. Your goal is to destroy all the hives to save your base while keeping yourself alive.
 
-## Requirements
+## Getting Started
 
-- Python 3.x
-- Pygame
+The first step to play the game is to clone this repo:
 
-## Installation
+```
+git clone https://github.com/your-username/SpaceHiveBattle.git
+```
 
-1. Install Python 3.x from the official website: https://www.python.org/downloads/
-2. Install Pygame by running the following command in your terminal or command prompt:
+After cloning, navigate into the project directory:
 
-pip install pygame
+```
+cd SpaceHiveBattle
+```
 
-3. Clone or download the SpaceHive Battle repository.
-4. Navigate to the game directory and run the main game file:
+Then, run the game script:
 
-python main.py
+```
+python space_hive_battle.py
+```
 
-## How to Play
+## Controls
 
-Use the arrow keys or W, A, S, D keys to move the spaceship.
-Use the mouse to aim and left-click to shoot lasers at the aliens and hives.
-Collect power-ups to heal your spaceship or increase your laser power.
-Protect your base and destroy all alien hives to progress through the levels.
+- Use the `W`, `A`, `S`, and `D` keys or the arrow keys to move your spaceship.
+- Use the left mouse button to fire lasers from your spaceship. 
+- The game also features power-ups that enhance your spaceship's abilities. 
 
-## Gameplay
+## Features
 
-The game consists of multiple levels with increasing difficulty.
-Each level has a number of alien hives that spawn aliens at a set rate.
-Aliens will attack both your spaceship and your base.
-Power-ups will spawn randomly, providing health or laser power boosts.
-The game ends if your base is destroyed or your spaceship's health reaches zero.
+- Alien hives that spawn alien ships.
+- Power-ups that enhance your ship's abilities.
+- A health bar for your spaceship and your base.
+- A level system that increases the difficulty as you progress.
+- A mini-map to help you navigate the battlefield.
+
+## How to Contribute
+
+If you want to contribute to this project, feel free to submit a pull request. We're always open to improving the game and adding new features!
