@@ -2,6 +2,9 @@
 
 Greetings Space Ranger! Welcome to the most exciting 2D alien extermination game you'll ever play, Space Hive Battle!
 
+https://github.com/matthew-kissinger/Space-Hive-Battle/assets/125378628/43909170-735a-4317-ac39-38e0d158cf3e
+
+
 ## About the Game
 
 Space Hive Battle is a thrilling, fast-paced game where you'll take on the role of a spaceship commander battling against an invasion of alien hives. The game is set in a large 2D space environment filled with alien hives, each with their own spawn rate and health. Your goal is to destroy all the hives to save your base while keeping yourself alive.
